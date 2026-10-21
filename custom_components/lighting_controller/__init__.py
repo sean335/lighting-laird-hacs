@@ -5,8 +5,8 @@ import logging
 from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN, PLATFORMS, DEFAULT_PORT
@@ -16,6 +16,7 @@ from .services import async_setup_services
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+CARD_URL = "/lighting_controller_frontend/lighting-controller-card.js"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -48,6 +49,38 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 _LOGGER.warning("Could not register static frontend path: %s", ex)
         except Exception as ex:
             _LOGGER.warning("Could not register static frontend path: %s", ex)
+
+        # Automatically register the card as a Lovelace resource in storage mode
+        async def _register_lovelace_resource(_event=None) -> None:
+            """Automatically add card resource to Lovelace storage mode."""
+            if "lovelace" not in hass.data:
+                return
+
+            lovelace = hass.data["lovelace"]
+            if getattr(lovelace, "mode", None) == "storage":
+                resources = getattr(lovelace, "resources", None)
+                if resources is not None:
+                    try:
+                        if not getattr(resources, "loaded", True):
+                            await resources.async_load()
+
+                        exists = any(
+                            item.get("url") == CARD_URL or item.get("url", "").startswith("/lighting_controller_frontend/")
+                            for item in resources.async_items()
+                        )
+                        if not exists:
+                            await resources.async_create_item({
+                                "url": CARD_URL,
+                                "type": "module",
+                            })
+                            _LOGGER.info("Successfully registered Lovelace resource: %s", CARD_URL)
+                    except Exception as err:
+                        _LOGGER.debug("Could not auto-register Lovelace resource: %s", err)
+
+        if hass.state == CoreState.running:
+            hass.async_create_task(_register_lovelace_resource())
+        else:
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register_lovelace_resource)
 
     return True
 
