@@ -380,10 +380,6 @@ class LightingControllerCard extends HTMLElement {
     return 3;
   }
 
-  static getConfigElement() {
-    return document.createElement("lighting-controller-card-editor");
-  }
-
   static getStubConfig() {
     return {
       title: "Lighting Keypad",
@@ -399,14 +395,18 @@ class LightingControllerCard extends HTMLElement {
 }
 
 // Register the custom element
-customElements.define("lighting-controller-card", LightingControllerCard);
+if (!customElements.get("lighting-controller-card")) {
+  customElements.define("lighting-controller-card", LightingControllerCard);
+}
 
 // Register with Home Assistant Lovelace card picker
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "lighting-controller-card",
-  name: "Lighting Controller Panel Card",
-  description: "Tactile lighting panel with live glowing pilot LEDs and encoder dials.",
-  preview: true,
-});
+if (!window.customCards.some((c) => c.type === "lighting-controller-card")) {
+  window.customCards.push({
+    type: "lighting-controller-card",
+    name: "Lighting Controller Panel Card",
+    description: "Tactile lighting panel with live glowing pilot LEDs and encoder dials.",
+    preview: true,
+  });
+}
 

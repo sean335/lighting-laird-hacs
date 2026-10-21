@@ -50,7 +50,28 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         except Exception as ex:
             _LOGGER.warning("Could not register static frontend path: %s", ex)
 
-        # Automatically register the card as a Lovelace resource in storage mode
+        # 1. Inject script into all frontend pages so the card is always loaded
+        try:
+            from homeassistant.components.frontend import add_extra_js_url
+            add_extra_js_url(hass, f"{CARD_URL}?v=2.0")
+            _LOGGER.debug("Registered card via frontend.add_extra_js_url")
+        except Exception as ex:
+            _LOGGER.debug("Could not add_extra_js_url: %s", ex)
+
+        # 2. Sync to <config>/www/ so /local/lighting-controller-card.js also works
+        try:
+            www_dir = Path(hass.config.path("www"))
+            if www_dir.exists():
+                src_card = frontend_path / "lighting-controller-card.js"
+                dst_card = www_dir / "lighting-controller-card.js"
+                if src_card.exists():
+                    import shutil
+                    shutil.copyfile(src_card, dst_card)
+                    _LOGGER.debug("Synced lighting-controller-card.js to %s", dst_card)
+        except Exception as ex:
+            _LOGGER.debug("Could not sync card to www: %s", ex)
+
+        # 3. Automatically register the card as a Lovelace resource in storage mode
         async def _register_lovelace_resource(_event=None) -> None:
             """Automatically add card resource to Lovelace storage mode."""
             if "lovelace" not in hass.data:
