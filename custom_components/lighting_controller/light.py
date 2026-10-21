@@ -32,10 +32,23 @@ async def async_setup_entry(
     for lamp in coordinator.topology.get("lamps", []):
         lamp_id = lamp.get("lamp_id")
         name = lamp.get("name")
-        dimmable = lamp.get("dimmable", True)
+        min_bri = lamp.get("min_brightness", 1)
+        dimmable_val = lamp.get("dimmable")
+
+        # In firmware, non-dimmable channels have minimumBrightness >= 250 (e.g. 254).
+        # Channels with minimumBrightness < 250 are dimmable lamps.
+        if min_bri >= 250:
+            is_dimmable = False
+        elif dimmable_val is True:
+            is_dimmable = True
+        elif dimmable_val is False and min_bri >= 250:
+            is_dimmable = False
+        else:
+            is_dimmable = (min_bri < 250)
+
         if lamp_id is not None and name:
             entities.append(
-                LightingControllerLamp(coordinator, lamp_id, name, dimmable)
+                LightingControllerLamp(coordinator, lamp_id, name, is_dimmable)
             )
 
     async_add_entities(entities)
@@ -81,7 +94,38 @@ class LightingControllerLamp(LightEntity):
 
     def _handle_update(self) -> None:
         """Handle state update from coordinator."""
+        state = self.coordinator.lamp_states.get(self.lamp_id)
+        if state:
+            min_bri = state.get("min_brightness", 1)
+            dimmable_val = state.get("dimmable")
+            if min_bri >= 250:
+                new_dimmable = False
+            elif dimmable_val is True:
+                new_dimmable = True
+            elif dimmable_val is False and min_bri >= 250:
+                new_dimmable = False
+            else:
+                new_dimmable = (min_bri < 250)
+
+            if new_dimmable != self._dimmable:
+                self._dimmable = new_dimmable
+                if self._dimmable:
+                    self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+                    self._attr_color_mode = ColorMode.BRIGHTNESS
+                else:
+                    self._attr_supported_color_modes = {ColorMode.ONOFF}
+                    self._attr_color_mode = ColorMode.ONOFF
         self.async_write_ha_state()
+
+    @property
+    def color_mode(self) -> ColorMode:
+        """Return the color mode of the light."""
+        return ColorMode.BRIGHTNESS if self._dimmable else ColorMode.ONOFF
+
+    @property
+    def supported_color_modes(self) -> set[ColorMode]:
+        """Flag supported color modes."""
+        return {ColorMode.BRIGHTNESS} if self._dimmable else {ColorMode.ONOFF}
 
     @property
     def is_on(self) -> bool:

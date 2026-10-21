@@ -92,12 +92,23 @@ class LightingControllerCoordinator:
         for lamp in self.topology.get("lamps", []):
             lamp_id = lamp.get("lamp_id")
             if lamp_id is not None:
+                min_bri = lamp.get("min_brightness", 1)
+                dimmable_val = lamp.get("dimmable")
+                if min_bri >= 250:
+                    is_dimmable = False
+                elif dimmable_val is True:
+                    is_dimmable = True
+                elif dimmable_val is False and min_bri >= 250:
+                    is_dimmable = False
+                else:
+                    is_dimmable = (min_bri < 250)
+
                 self.lamp_states[lamp_id] = {
                     "name": lamp.get("name", f"Lamp {lamp_id}"),
                     "brightness": lamp.get("brightness", 0),
                     "is_on": lamp.get("is_on", False),
-                    "dimmable": lamp.get("dimmable", True),
-                    "min_brightness": lamp.get("min_brightness", 1),
+                    "dimmable": is_dimmable,
+                    "min_brightness": min_bri,
                 }
 
         for panel in self.topology.get("panels", []):
