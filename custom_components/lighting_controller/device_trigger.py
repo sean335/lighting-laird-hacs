@@ -123,8 +123,12 @@ async def async_get_triggers(
                     }
                 )
 
-            # Patterns on this button
-            for pat_id, pat_name in coordinator.pattern_map.items():
+            # Only patterns configured for this button
+            configured_patterns = sorted(set(btn.get("patterns", [])))
+            for pat_id in configured_patterns:
+                pat_name = coordinator.pattern_map.get(pat_id)
+                if not pat_name:
+                    continue
                 triggers.append(
                     {
                         CONF_PLATFORM: "device",

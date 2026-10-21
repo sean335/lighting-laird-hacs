@@ -67,21 +67,17 @@ async def async_setup_entry(
                     )
                 )
 
-            # Specific event entity for each defined pattern gesture, providing a clean
-            # human-readable name in Home Assistant for use as an automation trigger.
-            for pat_id, pat_name in coordinator.pattern_map.items():
-                entities.append(
-                    LightingControllerSpecificPatternEvent(
-                        coordinator, panel_id, pin, panel_name, btn_name, pat_id, pat_name
+            # Specific event entity for each configured pattern gesture on this button.
+            # Only patterns that have already been configured for this button are displayed.
+            configured_patterns = sorted(set(btn.get("patterns", [])))
+            for pat_id in configured_patterns:
+                pat_name = coordinator.pattern_map.get(pat_id)
+                if pat_name:
+                    entities.append(
+                        LightingControllerSpecificPatternEvent(
+                            coordinator, panel_id, pin, panel_name, btn_name, pat_id, pat_name
+                        )
                     )
-                )
-
-            # Composite pattern event entity for gesture matching on this button
-            entities.append(
-                LightingControllerPatternEvent(
-                    coordinator, panel_id, pin, panel_name, btn_name
-                )
-            )
 
     async_add_entities(entities)
 
@@ -230,58 +226,5 @@ class LightingControllerSpecificPatternEvent(EventEntity):
                 matched_name is not None and matched_name == self.pattern_name
             ):
                 self._trigger_event("triggered", data)
-                self.async_write_ha_state()
-
-
-class LightingControllerPatternEvent(EventEntity):
-    """Event entity for composite pattern match gestures."""
-
-    _attr_has_entity_name = True
-
-    def __init__(
-        self,
-        coordinator: LightingControllerCoordinator,
-        panel_id: int,
-        pin: int,
-        panel_name: str,
-        button_name: str,
-    ) -> None:
-        """Initialize the pattern event entity."""
-        self.coordinator = coordinator
-        self.panel_id = panel_id
-        self.pin = pin
-        self._attr_name = f"{button_name} All Gestures"
-        self._attr_unique_id = f"{coordinator.entry_id}_pattern_{panel_id}_{pin}"
-
-        # Populate available pattern types
-        pattern_names = list(coordinator.pattern_map.values())
-        if not pattern_names:
-            pattern_names = ["Single Click", "Double Click", "Hold", "Long Press"]
-        self._attr_event_types = pattern_names
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{coordinator.entry_id}_panel_{panel_id}")},
-            name=f"Panel: {panel_name}",
-            via_device=(DOMAIN, coordinator.entry_id),
-            manufacturer="Lighting Laird",
-            model="Switch Panel",
-        )
-
-    async def async_added_to_hass(self) -> None:
-        """Register event callback."""
-        self.coordinator.register_event_callback(self._handle_event)
-
-    def _handle_event(self, data: dict[str, Any]) -> None:
-        """Handle incoming pattern event from coordinator."""
-        if (
-            data.get(ATTR_EVENT_TYPE) == "pattern"
-            and data.get(ATTR_PANEL_ID) == self.panel_id
-            and data.get(ATTR_PIN) == self.pin
-        ):
-            pattern_name = data.get(ATTR_PATTERN_NAME)
-            if pattern_name:
-                if pattern_name not in self._attr_event_types:
-                    self._attr_event_types.append(pattern_name)
-                self._trigger_event(pattern_name, data)
                 self.async_write_ha_state()
 
