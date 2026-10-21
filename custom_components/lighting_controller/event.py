@@ -17,6 +17,7 @@ from .const import (
     ATTR_PIN,
     ATTR_STATE,
     ATTR_DIRECTION,
+    ATTR_PATTERN_ID,
     ATTR_PATTERN_NAME,
 )
 from .coordinator import LightingControllerCoordinator
@@ -46,6 +47,10 @@ async def async_setup_entry(
             if pin is None:
                 continue
 
+            # Pins configured as Rotary DT cannot have trigger events
+            if btn_type == 3:  # ROTARY_DT
+                continue
+
             # Switch button (press/release)
             if btn_type in (0, 1):  # MOMENTARY_SWITCH, LATCHING_SWITCH
                 entities.append(
@@ -54,15 +59,24 @@ async def async_setup_entry(
                     )
                 )
 
-            # Rotary encoder (turn up / turn down)
-            elif btn_type in (2, 3):  # ROTARY_CLK, ROTARY_DT
+            # Rotary encoder (turn up / turn down) - only on Rotary CLK pin
+            elif btn_type == 2:  # ROTARY_CLK
                 entities.append(
                     LightingControllerDialEvent(
                         coordinator, panel_id, pin, panel_name, btn_name
                     )
                 )
 
-            # Pattern event entity for gesture matching on this button
+            # Specific event entity for each defined pattern gesture, providing a clean
+            # human-readable name in Home Assistant for use as an automation trigger.
+            for pat_id, pat_name in coordinator.pattern_map.items():
+                entities.append(
+                    LightingControllerSpecificPatternEvent(
+                        coordinator, panel_id, pin, panel_name, btn_name, pat_id, pat_name
+                    )
+                )
+
+            # Composite pattern event entity for gesture matching on this button
             entities.append(
                 LightingControllerPatternEvent(
                     coordinator, panel_id, pin, panel_name, btn_name
@@ -91,7 +105,7 @@ class LightingControllerButtonEvent(EventEntity):
         self.coordinator = coordinator
         self.panel_id = panel_id
         self.pin = pin
-        self._attr_name = f"{panel_name} {button_name}"
+        self._attr_name = f"{button_name}"
         self._attr_unique_id = f"{coordinator.entry_id}_btn_{panel_id}_{pin}"
 
         self._attr_device_info = DeviceInfo(
@@ -137,7 +151,7 @@ class LightingControllerDialEvent(EventEntity):
         self.coordinator = coordinator
         self.panel_id = panel_id
         self.pin = pin
-        self._attr_name = f"{panel_name} {button_name} Dial"
+        self._attr_name = f"{button_name} Dial"
         self._attr_unique_id = f"{coordinator.entry_id}_dial_{panel_id}_{pin}"
 
         self._attr_device_info = DeviceInfo(
@@ -166,8 +180,61 @@ class LightingControllerDialEvent(EventEntity):
                 self.async_write_ha_state()
 
 
+class LightingControllerSpecificPatternEvent(EventEntity):
+    """Event entity for a specific pattern gesture on a button."""
+
+    _attr_has_entity_name = True
+    _attr_event_types = ["triggered"]
+
+    def __init__(
+        self,
+        coordinator: LightingControllerCoordinator,
+        panel_id: int,
+        pin: int,
+        panel_name: str,
+        button_name: str,
+        pattern_id: int,
+        pattern_name: str,
+    ) -> None:
+        """Initialize the specific pattern event entity."""
+        self.coordinator = coordinator
+        self.panel_id = panel_id
+        self.pin = pin
+        self.pattern_id = pattern_id
+        self.pattern_name = pattern_name
+        self._attr_name = f"{button_name} {pattern_name}"
+        self._attr_unique_id = f"{coordinator.entry_id}_pat_{panel_id}_{pin}_{pattern_id}"
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{coordinator.entry_id}_panel_{panel_id}")},
+            name=f"Panel: {panel_name}",
+            via_device=(DOMAIN, coordinator.entry_id),
+            manufacturer="Lighting Laird",
+            model="Switch Panel",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register event callback."""
+        self.coordinator.register_event_callback(self._handle_event)
+
+    def _handle_event(self, data: dict[str, Any]) -> None:
+        """Handle incoming pattern event from coordinator."""
+        if (
+            data.get(ATTR_EVENT_TYPE) == "pattern"
+            and data.get(ATTR_PANEL_ID) == self.panel_id
+            and data.get(ATTR_PIN) == self.pin
+        ):
+            matched_id = data.get(ATTR_PATTERN_ID)
+            matched_name = data.get(ATTR_PATTERN_NAME)
+            if (matched_id is not None and matched_id == self.pattern_id) or (
+                matched_name is not None and matched_name == self.pattern_name
+            ):
+                self._trigger_event("triggered", data)
+                self.async_write_ha_state()
+
+
 class LightingControllerPatternEvent(EventEntity):
-    """Event entity for pattern match gestures."""
+    """Event entity for composite pattern match gestures."""
 
     _attr_has_entity_name = True
 
@@ -183,7 +250,7 @@ class LightingControllerPatternEvent(EventEntity):
         self.coordinator = coordinator
         self.panel_id = panel_id
         self.pin = pin
-        self._attr_name = f"{panel_name} {button_name} Pattern"
+        self._attr_name = f"{button_name} All Gestures"
         self._attr_unique_id = f"{coordinator.entry_id}_pattern_{panel_id}_{pin}"
 
         # Populate available pattern types

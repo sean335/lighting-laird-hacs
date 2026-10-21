@@ -76,6 +76,10 @@ async def async_get_triggers(
             if pin is None:
                 continue
 
+            # Pins configured as Rotary DT cannot have events or triggers (events are on CLK pin)
+            if btn_type == 3:
+                continue
+
             if btn_type in (0, 1):
                 triggers.append(
                     {
@@ -97,7 +101,7 @@ async def async_get_triggers(
                         CONF_PIN: pin,
                     }
                 )
-            elif btn_type in (2, 3):
+            elif btn_type == 2:  # ROTARY_CLK
                 triggers.append(
                     {
                         CONF_PLATFORM: "device",
@@ -119,7 +123,7 @@ async def async_get_triggers(
                     }
                 )
 
-            # Patterns
+            # Patterns on this button
             for pat_id, pat_name in coordinator.pattern_map.items():
                 triggers.append(
                     {

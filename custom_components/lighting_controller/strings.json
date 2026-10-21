@@ -17,6 +17,15 @@
     "abort": {
       "already_configured": "Device is already configured."
     }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "button_pressed": "Button \"{pin}\" pressed",
+      "button_released": "Button \"{pin}\" released",
+      "dial_turn_up": "Dial \"{pin}\" turned clockwise (up)",
+      "dial_turn_down": "Dial \"{pin}\" turned counter-clockwise (down)",
+      "pattern_matched": "Gesture \"{pattern_name}\" on button \"{pin}\""
+    }
   }
 }
 
