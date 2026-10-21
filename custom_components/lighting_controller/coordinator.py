@@ -94,14 +94,16 @@ class LightingControllerCoordinator:
             if lamp_id is not None:
                 min_bri = lamp.get("min_brightness", 1)
                 dimmable_val = lamp.get("dimmable")
-                if min_bri >= 250:
+                if min_bri == 254:
                     is_dimmable = False
                 elif dimmable_val is True:
                     is_dimmable = True
-                elif dimmable_val is False and min_bri >= 250:
+                elif dimmable_val is False and min_bri >= 254:
                     is_dimmable = False
+                elif min_bri < 250:
+                    is_dimmable = True
                 else:
-                    is_dimmable = (min_bri < 250)
+                    is_dimmable = True
 
                 self.lamp_states[lamp_id] = {
                     "name": lamp.get("name", f"Lamp {lamp_id}"),
