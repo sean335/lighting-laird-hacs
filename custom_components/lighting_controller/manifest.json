@@ -1,0 +1,11 @@
+{
+  "domain": "lighting_controller",
+  "name": "Lighting Controller",
+  "codeowners": ["@sregan"],
+  "config_flow": true,
+  "documentation": "https://github.com/sregan/lighting_controller",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/sregan/lighting_controller/issues",
+  "version": "1.0.0"
+}
+

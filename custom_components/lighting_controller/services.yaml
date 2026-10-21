@@ -1,0 +1,81 @@
+set_button_led:
+  name: Set Button LED
+  description: Controls the pilot LED state and brightness for a specific button on a lighting panel.
+  fields:
+    panel_id:
+      name: Panel ID
+      description: The ID of the panel (0-indexed).
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 49
+          mode: box
+    pin:
+      name: Button Pin Number
+      description: The pin index of the button (0 to 7).
+      required: true
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 7
+          mode: box
+    state:
+      name: State
+      description: Turn LED on or off.
+      required: true
+      default: true
+      selector:
+        boolean:
+    brightness:
+      name: Brightness
+      description: Optional override brightness (0 to 255). If omitted, daytime/nighttime controller default is used.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+
+identify_panel:
+  name: Identify Panel
+  description: Flashes all LEDs on a panel to locate it physically.
+  fields:
+    panel_id:
+      name: Panel ID
+      description: The ID of the panel to identify.
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 49
+          mode: box
+
+identify_button:
+  name: Identify Button
+  description: Flashes the LED of a specific button on a panel.
+  fields:
+    panel_id:
+      name: Panel ID
+      description: The ID of the panel.
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 49
+          mode: box
+    pin:
+      name: Button Pin Number
+      description: The button pin index (0 to 7).
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 0
+          max: 7
+          mode: box
+

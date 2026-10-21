@@ -1,0 +1,106 @@
+blueprint:
+  name: Lighting Controller — Panel Button, Dial & Pattern Action
+  description: >
+    Automate actions based on button clicks, rotary dial turns, or pattern matches
+    from your physical Lighting Controller panels. Controls ANY Home Assistant device
+    (Philips Hue, Zigbee, Z-Wave, Shelly, Sonos, etc.) and optionally synchronizes
+    the physical button's pilot LED with an entity's power state.
+  domain: automation
+  input:
+    panel_id:
+      name: Panel ID
+      description: The ID of the physical switch panel (0 to 49).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 49
+          mode: box
+    pin:
+      name: Button Pin (0 - 7)
+      description: The button index on the panel.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 7
+          mode: box
+    event_type:
+      name: Trigger Event
+      description: Type of gesture or event to listen for.
+      default: press
+      selector:
+        select:
+          options:
+            - label: "Button Press"
+              value: press
+            - label: "Button Release"
+              value: release
+            - label: "Rotary Dial Turn Up"
+              value: turn_up
+            - label: "Rotary Dial Turn Down"
+              value: turn_down
+            - label: "Pattern Match (Gesture)"
+              value: pattern
+    pattern_name:
+      name: Pattern Name (Optional)
+      description: If "Pattern Match" is selected, match a specific gesture name (e.g. "Double Click", "Triple Click", "Hold"). Leave empty to match any pattern.
+      default: ""
+      selector:
+        text:
+    target_action:
+      name: Action
+      description: What should happen when this button / dial / pattern event occurs?
+      selector:
+        action: {}
+    pilot_sync_entity:
+      name: Pilot LED Sync Entity (Optional)
+      description: Select a light, switch, or entity whose on/off state should be reflected on this button's physical pilot LED.
+      default: []
+      selector:
+        entity:
+          multiple: false
+
+mode: restart
+
+trigger:
+  - platform: event
+    event_type: lighting_controller_event
+    event_data:
+      panel_id: !input panel_id
+      pin: !input pin
+
+condition:
+  - condition: template
+    value_template: >
+      {% set target_event = '!input event_type' %}
+      {% set target_pattern = '!input pattern_name' %}
+      {% if target_event == 'press' %}
+        {{ trigger.event.data.type == 'button' and trigger.event.data.state == 'press' }}
+      {% elif target_event == 'release' %}
+        {{ trigger.event.data.type == 'button' and trigger.event.data.state == 'release' }}
+      {% elif target_event == 'turn_up' %}
+        {{ trigger.event.data.type == 'dial' and trigger.event.data.direction == 'up' }}
+      {% elif target_event == 'turn_down' %}
+        {{ trigger.event.data.type == 'dial' and trigger.event.data.direction == 'down' }}
+      {% elif target_event == 'pattern' %}
+        {{ trigger.event.data.type == 'pattern' and (target_pattern == '' or trigger.event.data.pattern_name == target_pattern) }}
+      {% else %}
+        false
+      {% endif %}
+
+action:
+  - choose: []
+    default: !input target_action
+
+  # If a pilot sync entity is configured, update the physical button's LED state
+  - if:
+      - condition: template
+        value_template: "{{ '!input pilot_sync_entity' != '' and states('!input pilot_sync_entity') != 'unknown' }}"
+    then:
+      - service: lighting_controller.set_button_led
+        data:
+          panel_id: !input panel_id
+          pin: !input pin
+          state: "{{ is_state('!input pilot_sync_entity', 'on') }}"
+
