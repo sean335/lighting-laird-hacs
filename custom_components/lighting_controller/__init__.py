@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from homeassistant.config_entries import ConfigEntries, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
@@ -22,15 +22,32 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Lighting Controller integration."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Register custom frontend card static path
+    # Register custom frontend card static path with backwards & forwards compatibility
     frontend_path = Path(__file__).parent / "frontend"
     if frontend_path.exists():
-        hass.http.register_static_path(
-            "/lighting_controller_frontend",
-            str(frontend_path),
-            cache_headers=False,
-        )
-        _LOGGER.debug("Registered frontend path at /lighting_controller_frontend")
+        try:
+            # Home Assistant 2024.7+
+            from homeassistant.components.http import StaticPathConfig
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig("/lighting_controller_frontend", str(frontend_path), False)]
+            )
+            _LOGGER.debug("Registered frontend path with async_register_static_paths")
+        except (ImportError, AttributeError):
+            try:
+                # Older Home Assistant versions
+                if hasattr(hass.http, "register_static_path"):
+                    hass.http.register_static_path(
+                        "/lighting_controller_frontend",
+                        str(frontend_path),
+                        cache_headers=False,
+                    )
+                    _LOGGER.debug("Registered frontend path with register_static_path")
+                else:
+                    _LOGGER.debug("No compatible static path registration method found on hass.http")
+            except Exception as ex:
+                _LOGGER.warning("Could not register static frontend path: %s", ex)
+        except Exception as ex:
+            _LOGGER.warning("Could not register static frontend path: %s", ex)
 
     return True
 
