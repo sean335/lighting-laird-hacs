@@ -103,6 +103,13 @@ class LightingControllerButtonEvent(EventEntity):
         self.pin = pin
         self._attr_name = f"{button_name}"
         self._attr_unique_id = f"{coordinator.entry_id}_btn_{panel_id}_{pin}"
+        self._attr_extra_state_attributes = {
+            "panel_id": panel_id,
+            "panel_name": panel_name,
+            "pin": pin,
+            "button_name": button_name,
+            "button_type": "switch",
+        }
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.entry_id}_panel_{panel_id}")},
@@ -149,6 +156,13 @@ class LightingControllerDialEvent(EventEntity):
         self.pin = pin
         self._attr_name = f"{button_name} Dial"
         self._attr_unique_id = f"{coordinator.entry_id}_dial_{panel_id}_{pin}"
+        self._attr_extra_state_attributes = {
+            "panel_id": panel_id,
+            "panel_name": panel_name,
+            "pin": pin,
+            "button_name": button_name,
+            "button_type": "dial",
+        }
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.entry_id}_panel_{panel_id}")},
@@ -200,6 +214,15 @@ class LightingControllerSpecificPatternEvent(EventEntity):
         self.pattern_name = pattern_name
         self._attr_name = f"{button_name} {pattern_name}"
         self._attr_unique_id = f"{coordinator.entry_id}_pat_{panel_id}_{pin}_{pattern_id}"
+        self._attr_extra_state_attributes = {
+            "panel_id": panel_id,
+            "panel_name": panel_name,
+            "pin": pin,
+            "button_name": button_name,
+            "button_type": "pattern",
+            "pattern_id": pattern_id,
+            "pattern_name": pattern_name,
+        }
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.entry_id}_panel_{panel_id}")},

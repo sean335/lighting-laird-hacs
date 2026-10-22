@@ -79,3 +79,81 @@ identify_button:
           max: 7
           mode: box
 
+trigger_event:
+  name: Trigger Event
+  description: Manually triggers a button press, release, dial turn, or input pattern event on a lighting panel, executing controller actions and notifying Home Assistant automations.
+  fields:
+    panel_id:
+      name: Panel ID
+      description: The ID of the physical panel (0 to 49).
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 49
+          mode: box
+    pin:
+      name: Button Pin
+      description: The button pin index (0 to 7).
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 7
+          mode: box
+    event_type:
+      name: Event Type
+      description: Type of event ("pattern", "button", or "dial").
+      required: false
+      default: pattern
+      selector:
+        select:
+          options:
+            - label: Pattern Match
+              value: pattern
+            - label: Button Press / Release
+              value: button
+            - label: Dial Turn
+              value: dial
+    pattern_id:
+      name: Pattern ID
+      description: Pattern ID if triggering a pattern event.
+      required: false
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 49
+          mode: box
+    pattern_name:
+      name: Pattern Name
+      description: Optional pattern name (e.g. "Single Click").
+      required: false
+      example: "Single Click"
+      selector:
+        text:
+    direction:
+      name: Direction
+      description: Direction for dial events ("up" or "down").
+      required: false
+      selector:
+        select:
+          options:
+            - label: Turn Up
+              value: up
+            - label: Turn Down
+              value: down
+    state:
+      name: State
+      description: State for button events ("press" or "release").
+      required: false
+      selector:
+        select:
+          options:
+            - label: Press
+              value: press
+            - label: Release
+              value: release
+

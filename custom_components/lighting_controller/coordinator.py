@@ -385,6 +385,72 @@ class LightingControllerCoordinator:
         except Exception as ex:
             _LOGGER.error("Failed to identify button: %s", ex)
 
+    async def async_trigger_event(
+        self,
+        panel_id: int,
+        pin: int,
+        event_type: str = "pattern",
+        pattern_id: int | None = None,
+        pattern_name: str | None = None,
+        state: str = "press",
+        direction: str = "up",
+    ) -> None:
+        """Trigger an event manually (executes actions and notifies HA automations)."""
+        panel_name = self.panel_map.get(panel_id, {}).get("name", f"Panel {panel_id}")
+        button_name = self._get_button_name(panel_id, pin)
+
+        if event_type == "pattern":
+            pat_name = pattern_name or self.pattern_map.get(pattern_id, f"Pattern {pattern_id}")
+            event_data = {
+                ATTR_EVENT_TYPE: "pattern",
+                ATTR_PANEL_ID: panel_id,
+                ATTR_PANEL_NAME: panel_name,
+                ATTR_PIN: pin,
+                ATTR_BUTTON_ID: (panel_id * 8) + pin,
+                ATTR_BUTTON_NAME: button_name,
+                ATTR_PATTERN_ID: pattern_id,
+                ATTR_PATTERN_NAME: pat_name,
+            }
+        elif event_type == "dial":
+            event_data = {
+                ATTR_EVENT_TYPE: "dial",
+                ATTR_PANEL_ID: panel_id,
+                ATTR_PANEL_NAME: panel_name,
+                ATTR_PIN: pin,
+                ATTR_BUTTON_ID: (panel_id * 8) + pin,
+                ATTR_BUTTON_NAME: button_name,
+                ATTR_DIRECTION: direction,
+                ATTR_STEP: 1,
+            }
+        else:
+            event_data = {
+                ATTR_EVENT_TYPE: "button",
+                ATTR_PANEL_ID: panel_id,
+                ATTR_PANEL_NAME: panel_name,
+                ATTR_PIN: pin,
+                ATTR_BUTTON_ID: (panel_id * 8) + pin,
+                ATTR_BUTTON_NAME: button_name,
+                ATTR_STATE: state,
+            }
+
+        # 1. Immediately notify Home Assistant bus and entities
+        self.hass.bus.async_fire(EVENT_LIGHTING_CONTROLLER, event_data)
+        self._notify_event_entities(event_data)
+
+        # 2. Tell the ESP32 controller to execute any mapped actions
+        session = async_get_clientsession(self.hass)
+        try:
+            url = f"{self.http_base}/triggerEvent?panelId={panel_id}&pinNumber={pin}&eventType={event_type}"
+            if pattern_id is not None:
+                url += f"&patternId={pattern_id}"
+            if direction:
+                url += f"&direction={direction}"
+            if state:
+                url += f"&state={state}"
+            await session.get(url, timeout=aiohttp.ClientTimeout(total=3))
+        except Exception as ex:
+            _LOGGER.debug("Note: Could not relay triggerEvent to controller HTTP: %s", ex)
+
     async def async_unload(self) -> None:
         """Shutdown coordinator and close WebSocket."""
         self._running = False
